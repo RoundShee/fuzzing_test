@@ -1,6 +1,7 @@
 import requests
 import json
 from typing import Dict, Any
+import re
 
 # 配置参数
 XINFERENCE_ENDPOINT = "http://192.168.2.29:9997"  # 实际地址
@@ -101,8 +102,36 @@ def raw_test_code(lang_which, lib_which):
     return result
 
 
+def advanced_clean_markdown_code(code_block: str) -> str:
+    """
+    Markdown 代码块清理函数
+    - 处理混合空格缩进
+    """
+    # 移除代码块标记
+    cleaned = re.sub(r'^\s*```([a-zA-Z+]*)\s*', '', code_block, flags=re.MULTILINE)
+    cleaned = re.sub(r'\s*```\s*$', '', cleaned, flags=re.MULTILINE)
+    
+    # 分割代码行
+    lines = cleaned.splitlines()
+    
+    # 移除缩进
+    processed_lines = []
+    for line in lines:
+        # 如果行以四个空格开头，则移除这四个空格
+        if line.startswith('    '):
+            processed_lines.append(line[4:])
+        # 否则保留原行
+        else:
+            processed_lines.append(line)
+    
+    return '\n'.join(processed_lines)
+
+
 if __name__ == "__main__":
-    language = "c"  # python c java
-    library = "libgflags-dev"  # numpy re math libgflags-dev gson
+    language = "java"  # python c java
+    library = "gson"  # numpy re math libgflags-dev gson
     result = raw_test_code(language, library)
+    result = advanced_clean_markdown_code(result)  # 清除代码块格式
     print(result)
+    with open('output.txt', 'w', encoding='utf-8') as file:  # 写出保存测试
+        file.write(result)

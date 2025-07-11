@@ -1,0 +1,6 @@
+./_pycache_
+./app
+./other.py
+./test.cpp
+./.gitignore
+./output.txt
