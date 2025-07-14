@@ -94,7 +94,7 @@ def raw_test_code(lang_which, lib_which):
             "temperature": 0.9
         }
     )
-    
+    result = advanced_clean_markdown_code(result)
     # print("模型响应：")
     # print("-" * 40)
     # print(result)
@@ -128,10 +128,9 @@ def advanced_clean_markdown_code(code_block: str) -> str:
 
 
 if __name__ == "__main__":
-    language = "java"  # python c java
-    library = "gson"  # numpy re math libgflags-dev gson
+    language = "c++"  # python c++ java
+    library = "libgflags-dev"  # numpy re math libgflags-dev gson
     result = raw_test_code(language, library)
-    result = advanced_clean_markdown_code(result)  # 清除代码块格式
     print(result)
     with open('output.txt', 'w', encoding='utf-8') as file:  # 写出保存测试
         file.write(result)

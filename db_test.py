@@ -2,7 +2,9 @@ from sqlalchemy import create_engine, Column, String, DateTime, Text, Boolean, E
 from sqlalchemy.orm import sessionmaker, scoped_session, declarative_base
 from sqlalchemy.dialects.mysql import BINARY, INTEGER
 import os
-from model_source import raw_test_code
+from model_source import raw_test_code  # 生成导入
+from text32 import mutate_test_case  # 变异导入
+
 
 engine = create_engine('mysql+pymysql://yb:88888888@172.17.0.12/sfp', echo=False)
 
@@ -41,38 +43,37 @@ def shutSession():
 atexit.register(shutSession)
 
 
+def one_click(id, lang, lib, mutate_count):
+    """
+    前端用户一次请求:原始生成,多次变异执行
+    输入id, lang, lib是字符串  mutate_count为int型
+    """
+    taskID = bytes.fromhex(id)
+    task = db_session.query(Task).filter(Task.id == taskID).first()  # 这里应该不考虑找不到的情况
+    task.status = 'run'
+    raw_code = raw_test_code(lang, lib)  # 生成测试用例
+    task.usecase = raw_code
+    db_session.commit()  # 提交task表的statues以及usecase
+
+    # 以下内容应为相同ID,不同次数的变异次数时:变异-执行写入
+    temp_mutate_code = ""  # 迭代变异代码
+    for seq in range(1,mutate_count+1):
+        if seq == 1:
+            temp_mutate_code = mutate_test_case(raw_code)
+        else:
+            temp_mutate_code = mutate_test_case(temp_mutate_code)
+        # 建立表,暂存入变异,提交
+        mutation = Mutation(id=taskID, seq=seq, usecase=temp_mutate_code)
+        db_session.add(mutation)
+        db_session.commit()
+        # 执行
+        # 没给接口,只有代码存放路径,且没有正确清除上一次执行后所有原始以及中间文件
+        # TODO 增加执行接口
+        # 这里执行完
+        mutation.result = 'suc'
+        # mutation.output =   ## 这里定义没有，但数据库有？
+        db_session.commit()
 
 if __name__ == '__main__':
-    tasks = db_session.query(Task.id).all()
-    # 这是遍历给ID
-    for task in tasks:
-        print(task.id.hex())
-    # ???
-    task = db_session.query(Task).filter(Task.id == tasks[0].id).first()   # 不一定是 tasks[0].id，并且 id 的类型不是字符串！！！
-    if task:
-        task.status = 'run'
-        db_session.commit()
-
-    # 存入测试用例
-    test_code = raw_test_code('java', 'gson')
-    if task:
-        task.usecase = test_code
-        db_session.commit()
-
-    # 变异
-    taskID = bytes.fromhex("c1b9ad350c13a120a9e4f3cc2be845ef")
-    task = db_session.query(Task).filter(Task.id == taskID).first()   # 不一定是 taskID，并且 id 的类型不是字符串！！！
-    if task:
-        print(task.usecase)
-        print(task.count)
-    
-
-    ## 下面是测试变异写入读取
-    # taskID = bytes.fromhex("c1b9ad350c13a120a9e4f3cc2be845ef")
-
-    # mutation = Mutation(id=taskID, seq=4, usecase=raw_test_code('java', 'gson'))
-    # db_session.add(mutation)
-    # db_session.commit()
-    # mutations = db_session.query(Mutation).filter(Mutation.id == taskID)
-    # for mutation in mutations:
-    #     print(f"seq: 第 {mutation.seq} 次变异，usecase: {mutation.usecase}")
+    id = "06E4BE02D0C81FF097499DEB5C9FBA29"
+    one_click(id=id, lang='C++', lib="libgflags-dev", mutate_count=100)
