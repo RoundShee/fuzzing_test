@@ -59,9 +59,12 @@ def one_click(id, lang, lib, mutate_count):
     temp_mutate_code = ""  # 迭代变异代码
     for seq in range(1,mutate_count+1):
         if seq == 1:
-            temp_mutate_code = mutate_test_case(raw_code)
-        else:
-            temp_mutate_code = mutate_test_case(temp_mutate_code)
+            temp_mutate_code = raw_code
+        while 1:  # 防止返回空值,但存在模型一直不响应的死循环问题
+            temp = mutate_test_case(temp_mutate_code)
+            if temp:
+                break
+        temp_mutate_code = temp
         # 建立表,暂存入变异,提交
         mutation = Mutation(id=taskID, seq=seq, usecase=temp_mutate_code)
         db_session.add(mutation)
@@ -73,7 +76,11 @@ def one_click(id, lang, lib, mutate_count):
         mutation.result = 'suc'
         # mutation.output =   ## 这里定义没有，但数据库有？
         db_session.commit()
-
+    # 上面应该是try语句,根据运行情况写入task表
+    task.vuln = False
+    task.status = 'suc' # run 是正在运行，suc 是测试结束，fail 是测试失败
+    db_session.commit()
+    
 if __name__ == '__main__':
     id = "06E4BE02D0C81FF097499DEB5C9FBA29"
     one_click(id=id, lang='C++', lib="libgflags-dev", mutate_count=100)
