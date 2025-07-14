@@ -119,7 +119,7 @@ def advanced_clean_markdown_code(code_block: str) -> str:
     for line in lines:
         # 如果行以四个空格开头，则移除这四个空格
         if line.startswith('    '):
-            processed_lines.append(line[4:])
+            processed_lines.append(line[5:])
         # 否则保留原行
         else:
             processed_lines.append(line)
