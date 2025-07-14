@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine, Column, String, DateTime, Text, Boolean, Enum
 from sqlalchemy.orm import sessionmaker, scoped_session, declarative_base
-from sqlalchemy.dialects.mysql import BINARY, INTEGER
+from sqlalchemy.dialects.mysql import BINARY, INTEGER, LONGTEXT
 import os
 
 engine = create_engine('mysql+pymysql://yb:88888888@172.17.0.12/sfp', echo=False)
@@ -19,17 +19,19 @@ class Task(Base):
     time = Column(DateTime, nullable=False, server_default='CURRENT_TIMESTAMP')
     lang = Column(String(50), nullable=False)
     lib = Column(String(50), nullable=False)
-    usecase = Column(Text, nullable=True)
+    usecase = Column(LONGTEXT, nullable=True)
     count = Column(INTEGER(unsigned=True), nullable=False)
     vuln = Column(Boolean, nullable=True)
-    status = Column(Enum('suc', 'fail', 'run', name='task_status'), nullable=True)
+    status = Column(Enum('suc', 'fail', 'run'), nullable=True)
+    
 
 class Mutation(Base):
     __tablename__ = 'mutation'
     id = Column(BINARY(16), primary_key=True, nullable=False)
     seq = Column(INTEGER(unsigned=True), primary_key=True, nullable=False)
-    usecase = Column(Text, nullable=False)
-    result = Column(Enum('suc', 'err', 'vuln', name='mutation_result'), nullable=False, server_default='suc')
+    usecase = Column(LONGTEXT, nullable=False)
+    result = Column(Enum('suc', 'err', 'vuln'), nullable=False, server_default='suc')
+    output = Column(Text, nullable=False)
 
 Base.metadata.create_all(engine)
 
@@ -39,14 +41,13 @@ def shutSession():
 atexit.register(shutSession)
 
 '''上面的别动！！！'''
-''' 如果自己操作坏了增加了乱七八糟的数据，到 http://192.168.1.19:58080 网页，点击清理全部，清空数据库 task 表和 mutation 表所有数据 '''
-''' 可以在 http://192.168.1.19:50080/phpmyadmin/ 查看数据库，如果本地有连接数据库的工具也可以连接 192.168.1.19:83306，密码 88888888 '''
+''' 如果自己操作坏了增加了乱七八糟的数据，到 http://192.168.1.19:45993 网页，点击清理全部，清空数据库 task 表和 mutation 表所有数据'''
 ''' 数据库操作教程 '''
 # 安装依赖 pip install sqlalchemy pymysql
 # 调用该文件时将此文件放入当前目录下，然后 from db import db_session, Task, Mutation
 if __name__ == '__main__':
     ''' 生成模块须看！'''
-    # 后端只提供 id，进入 http://192.168.1.19:58080/ 网页点击新建任务，传参问题后期合并后面再说，先手动传参
+    # 后端只提供 id，进入 http://192.168.1.19:45993/ 网页点击新建任务，传参问题后期合并后面再说，先手动传参
     # 此时新任务的 id 已经存入数据库 task 表中，前端只展示前 8 位数字
     # 运行下面代码可查看所有任务 ID， 结合前端的展示的 8 位 ID 可以找到刚刚新建任务的 id
     tasks = db_session.query(Task.id).all()
@@ -88,9 +89,10 @@ if __name__ == '__main__':
     for mutation in mutations:
         print(f"seq: 第 {mutation.seq} 次变异，usecase: {mutation.usecase}")
     # 执行模块完成后，将变异用例执行结果存入 mutation 表，将有无漏洞情况和运行状态存入 task表（对于数据库来说，是改操作不是增操作，不要 db_session.add！！！）
-    mutations = db_session.query(Mutation).filter(Mutation.id == taskID and Mutation.seq == 57).first() # 修改第 57 次变异用例执行结果
-    if mutations:
-        mutations.result = 'suc'    # suc 是成功执行，err 是语法错误，vuln 是触发漏洞（这三个字符全部固定的，不要自己设定）
+    mutation = db_session.query(Mutation).filter(Mutation.id == taskID and Mutation.seq == 57).first() # 修改第 57 次变异用例执行结果
+    if mutation:
+        mutation.result = 'suc'    # suc 是成功执行，err 是语法错误，vuln 是触发漏洞（这三个字符全部固定的，不要自己设定）
+        mutation.output = 'xxxxxxxxxxxxxxxxxxxxxxx'
         db_session.commit()
     task = db_session.query(Task).filter(Task.id == taskID).first()
     if task:
